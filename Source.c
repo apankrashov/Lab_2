@@ -14,9 +14,9 @@ int letterCount = 0;
 
 int values[26];
 int used[10];
-
 int leading[26];
 
+int frequency[26];
 int maxColumnCount;
 
 long long getNumber(char* word) {
@@ -45,61 +45,67 @@ void printSolution() {
     printf("\n");
 }
 
-int solveColumn(int col, long long carry);
+int processColumn(int col, long long carry) {
 
-int assignAddends(int k, int col, long long sum, long long carry) {
+    long long sum = carry;
 
-    if (k == wordCount - 1) {
+    for (int i = 0; i < wordCount - 1; i++) {
 
-        long long total = sum + carry;
-        int digit = total % 10;
-        long long nextCarry = total / 10;
+        int len = strlen(words[i]);
 
-        int len = strlen(words[wordCount - 1]);
-
-        if (col >= len) {
-            if (digit != 0)
-                return 0;
-
-            return solveColumn(col + 1, nextCarry);
+        if (col < len) {
+            int id = words[i][len - 1 - col];
+            sum += values[id - 'A'];
         }
-
-        int id = words[wordCount - 1][len - 1 - col] - 'A';
-
-        if (values[id] != -1) {
-            if (values[id] != digit)
-                return 0;
-
-            return solveColumn(col + 1, nextCarry);
-        }
-
-        if (used[digit] || (digit == 0 && leading[id]))
-            return 0;
-
-        values[id] = digit;
-        used[digit] = 1;
-
-        if (solveColumn(col + 1, nextCarry))
-            return 1;
-
-        values[id] = -1;
-        used[digit] = 0;
-
-        return 0;
     }
 
-    int len = strlen(words[k]);
+    int digit = sum % 10;
+    long long nextCarry = sum / 10;
+
+    int len = strlen(words[wordCount - 1]);
 
     if (col >= len) {
-        return assignAddends(k + 1, col, sum, carry);
+        if (digit != 0)
+            return 0;
+
+        return solveColumn(col + 1, nextCarry);
     }
 
-    int id = words[k][len - 1 - col] - 'A';
+    int id = words[wordCount - 1][len - 1 - col] - 'A';
 
     if (values[id] != -1) {
-        return assignAddends(k + 1, col,
-            sum + values[id], carry);
+        if (values[id] != digit)
+            return 0;
+
+        return solveColumn(col + 1, nextCarry);
     }
+
+    if (used[digit] || (digit == 0 && leading[id]))
+        return 0;
+
+    values[id] = digit;
+    used[digit] = 1;
+
+    if (solveColumn(col + 1, nextCarry))
+        return 1;
+
+    values[id] = -1;
+    used[digit] = 0;
+
+    return 0;
+}
+
+int assignColumnLetters(int index, int col,
+    int columnLetters[], int count, long long carry) {
+
+    if (index == count)
+        return processColumn(col, carry);
+
+    int id = columnLetters[index];
+
+    if (values[id] != -1)
+        return assignColumnLetters(index + 1, col,
+            columnLetters, count, carry);
 
     for (int d = 0; d <= 9; d++) {
 
@@ -112,7 +118,8 @@ int assignAddends(int k, int col, long long sum, long long carry) {
         values[id] = d;
         used[d] = 1;
 
-        if (assignAddends(k + 1, col, sum + d, carry))
+        if (assignColumnLetters(index + 1, col,
+            columnLetters, count, carry))
             return 1;
 
         values[id] = -1;
@@ -127,12 +134,60 @@ int solveColumn(int col, long long carry) {
     if (col == maxColumnCount)
         return carry == 0;
 
-    return assignAddends(0, col, 0, carry);
+    int columnLetters[MAX_WORDS];
+    int count = 0;
+
+    for (int i = 0; i < wordCount - 1; i++) {
+
+        int len = strlen(words[i]);
+
+        if (col >= len)
+            continue;
+
+        int id = words[i][len - 1 - col] - 'A';
+
+        int found = 0;
+
+        for (int j = 0; j < count; j++) {
+            if (columnLetters[j] == id) {
+                found = 1;
+                break;
+            }
+        }
+
+        if (!found)
+            columnLetters[count++] = id;
+    }
+
+    for (int i = 0; i < count - 1; i++) {
+
+        for (int j = i + 1; j < count; j++) {
+
+            if (frequency[columnLetters[j]] >
+                frequency[columnLetters[i]]) {
+
+                int temp = columnLetters[i];
+                columnLetters[i] = columnLetters[j];
+                columnLetters[j] = temp;
+            }
+        }
+    }
+
+    return assignColumnLetters(0, col,
+        columnLetters, count, carry);
 }
 
 int solveColumns() {
 
-    maxColumnCount = strlen(words[wordCount - 1]);
+    maxColumnCount = 0;
+
+    for (int i = 0; i < wordCount; i++) {
+
+        int len = strlen(words[i]);
+
+        if (len > maxColumnCount)
+            maxColumnCount = len;
+    }
 
     return solveColumn(0, 0);
 }
@@ -146,6 +201,8 @@ void findLetters() {
         for (int j = 0; words[i][j] != '\0'; j++) {
 
             int id = words[i][j] - 'A';
+
+            frequency[id]++;
 
             if (!found[id]) {
                 found[id] = 1;
@@ -190,9 +247,8 @@ int main() {
 
     for (int i = 0; i < wordCount; i++) {
 
-        if (strlen(words[i]) > 1) {
+        if (strlen(words[i]) > 1)
             leading[words[i][0] - 'A'] = 1;
-        }
     }
 
     findLetters();
