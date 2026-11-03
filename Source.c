@@ -17,32 +17,7 @@ int used[10];
 
 int leading[26];
 
-long long coefficients[26];
-
-void calculateCoefficients() {
-    for (int i = 0; i < 26; i++) {
-        coefficients[i] = 0;
-    }
-
-    for (int i = 0; i < wordCount; i++) {
-        int sign;
-
-        if (i == wordCount - 1)
-            sign = -1;
-        else
-            sign = 1;
-
-        int len = strlen(words[i]);
-        long long place = 1;
-
-        for (int j = len - 1; j >= 0; j--) {
-            int id = words[i][j] - 'A';
-
-            coefficients[id] += sign * place;
-            place *= 10;
-        }
-    }
-}
+int maxColumnCount;
 
 long long getNumber(char* word) {
     long long result = 0;
@@ -53,17 +28,6 @@ long long getNumber(char* word) {
     }
 
     return result;
-}
-
-int checkSolution() {
-    long long sum = 0;
-
-    for (int i = 0; i < letterCount; i++) {
-        int id = letters[i] - 'A';
-        sum += coefficients[id] * values[id];
-    }
-
-    return sum == 0;
 }
 
 void printSolution() {
@@ -81,14 +45,61 @@ void printSolution() {
     printf("\n");
 }
 
-int solve(int index) {
+int solveColumn(int col, long long carry);
 
-    if (index == letterCount) {
-        return checkSolution();
+int assignAddends(int k, int col, long long sum, long long carry) {
+
+    if (k == wordCount - 1) {
+
+        long long total = sum + carry;
+        int digit = total % 10;
+        long long nextCarry = total / 10;
+
+        int len = strlen(words[wordCount - 1]);
+
+        if (col >= len) {
+            if (digit != 0)
+                return 0;
+
+            return solveColumn(col + 1, nextCarry);
+        }
+
+        int id = words[wordCount - 1][len - 1 - col] - 'A';
+
+        if (values[id] != -1) {
+            if (values[id] != digit)
+                return 0;
+
+            return solveColumn(col + 1, nextCarry);
+        }
+
+        if (used[digit] || (digit == 0 && leading[id]))
+            return 0;
+
+        values[id] = digit;
+        used[digit] = 1;
+
+        if (solveColumn(col + 1, nextCarry))
+            return 1;
+
+        values[id] = -1;
+        used[digit] = 0;
+
+        return 0;
     }
 
-    char current = letters[index];
-    int id = current - 'A';
+    int len = strlen(words[k]);
+
+    if (col >= len) {
+        return assignAddends(k + 1, col, sum, carry);
+    }
+
+    int id = words[k][len - 1 - col] - 'A';
+
+    if (values[id] != -1) {
+        return assignAddends(k + 1, col,
+            sum + values[id], carry);
+    }
 
     for (int d = 0; d <= 9; d++) {
 
@@ -101,7 +112,7 @@ int solve(int index) {
         values[id] = d;
         used[d] = 1;
 
-        if (solve(index + 1))
+        if (assignAddends(k + 1, col, sum + d, carry))
             return 1;
 
         values[id] = -1;
@@ -111,10 +122,27 @@ int solve(int index) {
     return 0;
 }
 
+int solveColumn(int col, long long carry) {
+
+    if (col == maxColumnCount)
+        return carry == 0;
+
+    return assignAddends(0, col, 0, carry);
+}
+
+int solveColumns() {
+
+    maxColumnCount = strlen(words[wordCount - 1]);
+
+    return solveColumn(0, 0);
+}
+
 void findLetters() {
+
     int found[26] = { 0 };
 
     for (int i = 0; i < wordCount; i++) {
+
         for (int j = 0; words[i][j] != '\0'; j++) {
 
             int id = words[i][j] - 'A';
@@ -128,6 +156,7 @@ void findLetters() {
 }
 
 void parseInput(char* input) {
+
     char* token = strtok(input, " +=\t\r\n");
 
     while (token != NULL && wordCount < MAX_WORDS) {
@@ -135,20 +164,19 @@ void parseInput(char* input) {
         strcpy(words[wordCount], token);
         wordCount++;
 
-        token = strtok(NULL, " +=\n");
+        token = strtok(NULL, " +=\t\r\n");
     }
 }
 
 int main() {
+
     char input[1024];
 
-    for (int i = 0; i < 26; i++) {
+    for (int i = 0; i < 26; i++)
         values[i] = -1;
-    }
 
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 10; i++)
         used[i] = 0;
-    }
 
     if (fgets(input, sizeof(input), stdin) == NULL)
         return 1;
@@ -161,23 +189,26 @@ int main() {
     }
 
     for (int i = 0; i < wordCount; i++) {
+
         if (strlen(words[i]) > 1) {
             leading[words[i][0] - 'A'] = 1;
         }
     }
 
     findLetters();
-    calculateCoefficients();
 
     if (letterCount > 10) {
         printf("No solution\n");
         return 0;
     }
 
-    if (solve(0)) {
+    if (solveColumns()) {
+
         printSolution();
+
     }
     else {
+
         printf("No solution\n");
     }
 
