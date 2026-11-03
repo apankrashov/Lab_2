@@ -17,6 +17,33 @@ int used[10];
 
 int leading[26];
 
+long long coefficients[26];
+
+void calculateCoefficients() {
+    for (int i = 0; i < 26; i++) {
+        coefficients[i] = 0;
+    }
+
+    for (int i = 0; i < wordCount; i++) {
+        int sign;
+
+        if (i == wordCount - 1)
+            sign = -1;
+        else
+            sign = 1;
+
+        int len = strlen(words[i]);
+        long long place = 1;
+
+        for (int j = len - 1; j >= 0; j--) {
+            int id = words[i][j] - 'A';
+
+            coefficients[id] += sign * place;
+            place *= 10;
+        }
+    }
+}
+
 long long getNumber(char* word) {
     long long result = 0;
 
@@ -31,13 +58,12 @@ long long getNumber(char* word) {
 int checkSolution() {
     long long sum = 0;
 
-    for (int i = 0; i < wordCount - 1; i++) {
-        sum += getNumber(words[i]);
+    for (int i = 0; i < letterCount; i++) {
+        int id = letters[i] - 'A';
+        sum += coefficients[id] * values[id];
     }
 
-    long long result = getNumber(words[wordCount - 1]);
-
-    return sum == result;
+    return sum == 0;
 }
 
 void printSolution() {
@@ -141,6 +167,7 @@ int main() {
     }
 
     findLetters();
+    calculateCoefficients();
 
     if (letterCount > 10) {
         printf("No solution\n");
